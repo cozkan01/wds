@@ -1,0 +1,22 @@
+# OmniParser & WDS Integration Plan
+
+The goal is to enhance OmniParser's detection capabilities by integrating Semantic Object Targets (SOTs) extracted from the custom WDS (Laplacian-based) image processing pipeline.
+
+## Proposed Changes
+### `c:\js\wds\OmniParser\wds_omniparser_bridge.py`
+We will create a new script to bridge the two systems:
+- Import `wehgp` from `WDS` to extract SOT bounding boxes.
+- Import [check_ocr_box](file:///c:/js/wds/OmniParser/util/utils.py#500-537) and [get_som_labeled_img](file:///c:/js/wds/OmniParser/util/utils.py#403-483) from [OmniParser\util\utils.py](file:///c:/js/wds/OmniParser/util/utils.py).
+- Run both detection pipelines on a target image (`image.png`).
+- Implement an IoU-based comparison to find SOTs that were missed by OmniParser.
+- Crop the missing SOTs from the original image.
+- Pass the cropped images through OmniParser's [get_parsed_content_icon](file:///c:/js/wds/OmniParser/util/utils.py#74-119) (Florence-2) to infer semantics (text or icon description).
+- Merge the novel WDS detections into the final OmniParser result list.
+- Re-render the annotated image with the combined bounding boxes and save as `output_combined.png`.
+
+## Verification Plan
+### Automated Tests
+- Run `python wds_omniparser_bridge.py` on `image.png`.
+- Verify the script correctly adds new bounding boxes that OmniParser missed natively.
+### Manual Verification
+- Review `output_combined.png` visually to confirm the missing SOTs (like small text or faint icons) are now enclosed in bounding boxes with reasonable captions.

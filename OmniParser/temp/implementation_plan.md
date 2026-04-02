@@ -1,0 +1,45 @@
+# OmniParser & WDS Integration Plan
+
+The goal is to enhance OmniParser's detection capabilities by integrating Semantic Object Targets (SOTs) extracted from the custom WDS (Laplacian-based) image processing pipeline.
+
+## Proposed Changes
+### `c:\js\wds\OmniParser\wds_omniparser_bridge.py`
+We will create a new script to bridge the two systems:
+- Import `wehgp` from `WDS` to extract SOT bounding boxes.
+- Import `check_ocr_box` and `get_som_labeled_img` from `OmniParser\util\utils.py`.
+- Run both detection pipelines on a target image (`image.png`).
+- Implement an IoU-based comparison to find SOTs that were missed by OmniParser.
+- Crop the missing SOTs from the original image.
+- Pass the cropped images through OmniParser's `get_parsed_content_icon` (Florence-2) to infer semantics (text or icon description).
+- [x] Merge the novel WDS detections into the final OmniParser result list.
+- [x] Re-render the annotated image with the combined bounding boxes and save as `output_combined.png`.
+
+### `c:\js\wds\OmniParser\gui.py` [NEW]
+We have created a dark-themed Tkinter GUI to make interaction easier:
+- **Side-by-side view**: Original image vs. Hybrid Result.
+- **Background processing**: Analysis runs in a separate thread to keep the UI responsive.
+- [x] Clipboard support: Added `Ctrl+V` and a "Paste" button to load images directly (rescued via `ImageGrab`).
+- [x] Live stats: Real-time counters for OmniParser elements, WDS rescued elements, and the total count.
+
+### Full-Size Image Viewer [NEW]
+To improve usability, we will add a "Click to Enlarge" feature:
+- [x] Toplevel Window: Clicking on an image will open a dedicated window.
+- [x] Scrollable Canvas: Large images will be scrollable horizontally and vertically.
+- [x] Maximized View: The window will be maximized by default to provide the best possible look at the high-res screenshots.
+
+### Multi-Tab GUI Architecture [NEW]
+To support specialized views, we will transition to a tabbed interface:
+- [x] **Notebook Widget**: Use `ttk.Notebook` to separate "Detection" and "Masking" workflows.
+- [x] **`mask_tab.py` [NEW]**: A dedicated file to handle the rendering and logic of the Laplacian mask view.
+- [x] Enhanced Masking View: A full-panel display of the binary mask produced by the WDS Laplacian detector, with its own "Click to Enlarge" support.
+
+### Mask Tab Enhancements [NEW]
+- **SOT Overlays**: Draw the WDS detected bounding boxes directly onto the binary mask.
+- **Visual Correlation**: This allows the user to see exactly which clusters in the Laplacian mask were grouped into a final detection box.
+
+## Verification Plan
+### Automated Tests
+- Run `python wds_omniparser_bridge.py` on `image.png`.
+- Verify the script correctly adds new bounding boxes that OmniParser missed natively.
+### Manual Verification
+- Review `output_combined.png` visually to confirm the missing SOTs (like small text or faint icons) are now enclosed in bounding boxes with reasonable captions.

@@ -1,0 +1,9 @@
+# WDS & OmniParser Integration
+- [ ] Parse original image (`image.png`) using [c:\js\wds\OmniParser\WDS\wehgp.py](file:///c:/js/wds/OmniParser/WDS/wehgp.py) to extract SOT bounding boxes.
+- [ ] Parse original image using OmniParser V2 (YOLO + Florence-2).
+- [ ] Compute IoU between WDS SOTs and OmniParser detections.
+- [ ] Identify WDS SOTs that OmniParser missed (IoU < threshold, e.g., 0.1).
+- [ ] Crop missing SOTs from the original image.
+- [ ] Run Florence-2 captioning on each cropped SOT to extract semantic meaning.
+- [ ] Merge the new SOTs with OmniParser's original detections.
+- [ ] Reconstruct and save the final annotated image (`output_combined.png`).
