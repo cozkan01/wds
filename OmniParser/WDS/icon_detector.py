@@ -11,39 +11,30 @@ _MIN_VAR = 8.0
 _FILL_THRESH = 0.15
 
 def _edge_map(bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Laplacian Structure Detection (LSD) with Hardened gradient suppression."""
-    # Step 1: Denoise to kill compression artifacts
     denoised = cv2.bilateralFilter(bgr, 5, 50, 50)
     hsv = cv2.cvtColor(denoised, cv2.COLOR_BGR2HSV)
     channels = cv2.split(hsv)
     
-    # Step 2: Multi-channel Laplacian
     lap_fused = np.zeros(bgr.shape[:2], dtype=np.float32)
     for c in channels:
         lap = cv2.Laplacian(c, cv2.CV_32F, ksize=3)
         cv2.max(lap_fused, np.abs(lap), lap_fused)
         
-    # score_np is our 'strength' map
     score_np = cv2.normalize(lap_fused, None, 0.0, 1.0, cv2.NORM_MINMAX)
     
-    # Step 3: Hardened Threshold. 60 is very aggressive for high-res screens.
     _, binary = cv2.threshold(lap_fused, 60, 255, cv2.THRESH_BINARY)
     binary = binary.astype(np.uint8)
 
-    # Step 4: Spatial Pruning (Median blur) to kill isolated noise pixels
     binary = cv2.medianBlur(binary, 3)
 
     k_close = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     mask = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, k_close)
 
-    # Step 5: Ironclad Variance Filter. 
-    # Wallpaper glows are smooth (low variance). UI elements have sharp contrast.
     gray_f = cv2.cvtColor(denoised, cv2.COLOR_BGR2GRAY).astype(np.float32)
     mean_sq = cv2.blur(gray_f ** 2, (7, 7))
     sq_mean = cv2.blur(gray_f, (7, 7)) ** 2
     variance = mean_sq - sq_mean
     
-    # Suppression: High threshold (80) + high score gate (0.35)
     mask[(variance < 80.0) & (score_np < 0.35)] = 0
     
     return score_np, mask
@@ -64,25 +55,19 @@ def _angle_entropy(gx_full: np.ndarray, gy_full: np.ndarray, cc_mask: np.ndarray
     return -np.sum(p * np.log2(p))
 
 def _try_accept(x: int, y: int, w: int, h: int, area: int, mask: np.ndarray, gx: np.ndarray, gy: np.ndarray) -> tuple[float, bool]:
-    # Hard dimension gates
     if w < _MIN_D or h < _MIN_D:
         return 0.0, False
     if w > _MAX_D or h > _MAX_D:
         return 0.0, False
     
-    # Aspect Ratio Gate: Suppress window borders/separators
-    # Icons and buttons are usually 1:1 or 3:1. Borders are 100:1.
     ar = w / h
     if ar > 5.5 or ar < 0.18:
         return 0.0, False
 
-    # Fill density (Solidity) check
     fill = area / (w * h)
-    # Icons/Buttons are solid. Borders/noise are hollow fragments.
     if fill < 0.20:
         return 0.0, False
         
-    # Structural Complexity Gate
     ent = _angle_entropy(gx, gy, mask)
     if ent < _ENTROPY_THRESH:
         return 0.0, False
@@ -158,7 +143,6 @@ def detect_icons(bgr: np.ndarray, existing_boxes=None) -> tuple[list[dict], np.n
                     labels_keep[grown > 0] = 255
             continue
             
-        # Standard size
         cc_mask_bool = (labels == i)
         _, ok = _try_accept(x, y, w, h, area, cc_mask_bool, gx, gy)
         if ok:
